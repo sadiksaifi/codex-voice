@@ -1,0 +1,26 @@
+[tools]
+go = "1.27.1"
+"aqua:golangci/golangci-lint" = "2.14.0"
+
+[tasks.build]
+description = "Build the app"
+sources = ["**/*.go", "go.mod", "go.sum"]
+outputs = ["bin/voice"]
+run = "go build -o bin/voice ./cmd/voice"
+
+[tasks.start]
+description = "Build and run the app"
+depends = ["build"]
+run = "./bin/voice"
+
+[tasks.fmt]
+description = "Format Go code and imports"
+run = "golangci-lint fmt ./..."
+
+[tasks.lint]
+description = "Check Go code and formatting"
+run = "golangci-lint run ./..."
+
+[tasks."lint:fix"]
+description = "Apply lint fixes and format Go code"
+run = "golangci-lint run --fix ./..."
