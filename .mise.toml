@@ -1,10 +1,19 @@
 [tools]
 go = "1.27.1"
 "aqua:golangci/golangci-lint" = "2.14.0"
+"conda:clang" = "23.1.2"
+"conda:pkg-config" = "0.29.2"
+"conda:libopus" = "1.6.1"
+
+[env]
+CC = "clang"
+CGO_ENABLED = "1"
+PKG_CONFIG_PATH = { value = "{{ tools['conda:libopus'].path }}/lib/pkgconfig", tools = true }
+CGO_LDFLAGS = { value = "-Wl,-rpath,{{ tools['conda:libopus'].path }}/lib", tools = true }
 
 [tasks.build]
 description = "Build the app"
-sources = ["**/*.go", "go.mod", "go.sum"]
+sources = ["**/*.go", "go.mod", "go.sum", ".mise.toml"]
 outputs = ["bin/voice"]
 run = "go build -o bin/voice ./cmd/voice"
 
