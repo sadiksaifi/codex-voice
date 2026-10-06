@@ -25,7 +25,7 @@ type Device struct {
 	done      chan struct{}
 	started   bool
 	mu        sync.Mutex
-	playback  []int16
+	playback  playbackBuffer
 }
 
 type DeviceInfo struct {
@@ -127,11 +127,7 @@ func New(synthetic bool, microphone, speaker int) (*Device, error) {
 func (d *Device) callback(output, input []byte, _ uint32) {
 	clear(output)
 	d.mu.Lock()
-	n := min(len(output)/2, len(d.playback))
-	for i := range n {
-		binary.LittleEndian.PutUint16(output[i*2:], uint16(d.playback[i]))
-	}
-	d.playback = d.playback[n:]
+	d.playback.read(output)
 	d.mu.Unlock()
 	pcm := make([]int16, len(input)/2)
 	peak := 0
@@ -205,7 +201,11 @@ func (d *Device) SetMuted(muted bool)   { d.muted.Store(muted) }
 
 func (d *Device) Level() float64 { return math.Float64frombits(d.level.Load()) }
 
-func (d *Device) ClearPlayback() { d.mu.Lock(); d.playback = nil; d.mu.Unlock() }
+func (d *Device) ClearPlayback() {
+	d.mu.Lock()
+	d.playback.clear()
+	d.mu.Unlock()
+}
 
 // Play decodes one Opus packet and reports whether it contains audible samples.
 func (d *Device) Play(packet []byte) (bool, error) {
@@ -222,11 +222,7 @@ func (d *Device) Play(packet []byte) (bool, error) {
 	}
 	if !d.synthetic {
 		d.mu.Lock()
-		// Bound latency if output stops consuming samples.
-		if len(d.playback)+len(pcm) > sampleRate {
-			d.playback = nil
-		}
-		d.playback = append(d.playback, pcm...)
+		d.playback.push(pcm)
 		d.mu.Unlock()
 	}
 	return audible, nil
